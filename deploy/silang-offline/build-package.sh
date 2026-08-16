@@ -102,6 +102,9 @@ EOF
   sha256sum -c checksums.sha256 >/dev/null
 )
 tar -C "$output_parent" -czf "$archive" "$package_name"
-sha256sum "$archive" >"$archive.sha256"
+(
+  cd "$output_parent"
+  sha256sum "$(basename "$archive")" >"$(basename "$archive").sha256"
+)
 printf 'Package: %s\n' "$archive"
 cat "$archive.sha256"
