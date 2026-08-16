@@ -12,6 +12,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -125,9 +126,11 @@ func (e *otlpTraceEmitter) record(completion GatewayCallCompletion) {
 
 	shared := e.sharedAttributes(completion)
 	traceID := traceIDForRequest(completion.Call.RequestID)
-	// Detached from any request context: a client that hangs up must not cancel the
-	// record of what it did.
-	ctx := withSpanIdentity(context.Background(), traceID, spanIDForRequest(completion.Call.RequestID, "request"))
+	// Detached from the request cancellation context: a client that hangs up must not
+	// cancel the record of what it did. A valid W3C parent is reconstructed from the
+	// bounded header values captured at the HTTP boundary; otherwise TokenHub keeps
+	// its historical deterministic root trace ID.
+	ctx := traceParentContext(completion.Call, traceID, spanIDForRequest(completion.Call.RequestID, "request"))
 
 	rootAttributes := append([]attribute.KeyValue{}, shared...)
 	rootAttributes = append(rootAttributes,
@@ -172,6 +175,22 @@ func (e *otlpTraceEmitter) record(completion GatewayCallCompletion) {
 	}
 
 	root.End(trace.WithTimestamp(finishedAt))
+}
+
+func traceParentContext(call CallContext, fallbackTraceID trace.TraceID, rootSpanID trace.SpanID) context.Context {
+	carrier := propagation.MapCarrier{}
+	if call.traceParent != "" {
+		carrier.Set("traceparent", call.traceParent)
+	}
+	if call.traceState != "" {
+		carrier.Set("tracestate", call.traceState)
+	}
+	ctx := propagation.TraceContext{}.Extract(context.Background(), carrier)
+	parent := trace.SpanContextFromContext(ctx)
+	if parent.IsValid() {
+		return withSpanIdentity(ctx, parent.TraceID(), rootSpanID)
+	}
+	return withSpanIdentity(context.Background(), fallbackTraceID, rootSpanID)
 }
 
 // recordAttempt emits one generation. Usage and cost live here rather than on the

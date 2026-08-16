@@ -219,22 +219,40 @@ func (s *Server) executeRoutedAnthropicMessages(
 
 func anthropicToOpenAIChatRequest(req anthropicMessagesRequest, provider Provider) (ChatCompletionRequest, error) {
 	messages := make([]ChatMessage, 0, len(req.Messages)+1)
+	systemParts := make([]string, 0, 2)
 	if system, exists := req.Raw["system"]; exists {
 		text, err := anthropicSystemText(system)
 		if err != nil {
 			return ChatCompletionRequest{}, err
 		}
 		if text != "" {
-			messages = append(messages, ChatMessage{Role: "system", Content: text})
+			systemParts = append(systemParts, text)
 		}
 	}
 	for _, rawMessage := range req.Messages {
 		message := rawMessage.(map[string]any)
+		if role, _ := message["role"].(string); role == "system" {
+			text, err := anthropicSystemText(message["content"])
+			if err != nil {
+				return ChatCompletionRequest{}, err
+			}
+			if text != "" {
+				systemParts = append(systemParts, text)
+			}
+			continue
+		}
 		converted, err := anthropicMessageToOpenAI(message, provider)
 		if err != nil {
 			return ChatCompletionRequest{}, err
 		}
 		messages = append(messages, converted...)
+	}
+	// OpenAI-compatible model servers commonly require every system instruction
+	// to appear before conversational messages. Claude Code may send gated
+	// mid-conversation system messages, so collapse all system content into one
+	// leading message while preserving the relative order of non-system turns.
+	if len(systemParts) > 0 {
+		messages = append([]ChatMessage{{Role: "system", Content: strings.Join(systemParts, "\n\n")}}, messages...)
 	}
 	tools, err := anthropicToolsToOpenAI(req.Raw["tools"])
 	if err != nil {
@@ -434,6 +452,8 @@ func anthropicUserMessageToOpenAI(blocks []map[string]any) ([]ChatMessage, error
 				return nil, err
 			}
 			contentBlocks = append(contentBlocks, part)
+		case "document":
+			contentBlocks = append(contentBlocks, anthropicDocumentToOpenAITextPart(block))
 		case "tool_result":
 			toolUseID, _ := block["tool_use_id"].(string)
 			if toolUseID == "" {
@@ -468,6 +488,30 @@ func anthropicUserMessageToOpenAI(blocks []map[string]any) ([]ChatMessage, error
 		toolMessages = append(toolMessages, ChatMessage{Role: "user", Content: ""})
 	}
 	return toolMessages, nil
+}
+
+const anthropicDocumentUnavailableNotice = "[TokenHub attachment notice: A document attachment (%s) could not be provided to this model. Do not assume that its contents were read. Do not retry reading this attachment with tools; tell the user that the attachment is unavailable and continue the conversation.]"
+
+// anthropicDocumentToOpenAITextPart prevents an unsupported document block
+// from invalidating the remaining Claude Code conversation. Text documents are
+// forwarded losslessly; other sources become a bounded and explicit notice.
+// Native Anthropic routes bypass this conversion and retain the original block.
+func anthropicDocumentToOpenAITextPart(block map[string]any) map[string]any {
+	source, _ := block["source"].(map[string]any)
+	if sourceType, _ := source["type"].(string); sourceType == "text" {
+		if data, ok := source["data"].(string); ok && data != "" {
+			return map[string]any{"type": "text", "text": data}
+		}
+	}
+	mediaType, _ := source["media_type"].(string)
+	mediaType = strings.TrimSpace(mediaType)
+	if mediaType == "" {
+		mediaType = "unknown type"
+	}
+	return map[string]any{
+		"type": "text",
+		"text": fmt.Sprintf(anthropicDocumentUnavailableNotice, mediaType),
+	}
 }
 
 func anthropicBlockToOpenAIContentPart(block map[string]any) (map[string]any, error) {
@@ -826,6 +870,7 @@ func (s *Server) doNativeAnthropicRequest(
 	for key, value := range provider.Headers {
 		req.Header.Set(key, value)
 	}
+	recordProviderOutboundRequest(ctx, provider, stringValue(payload["model"]), http.MethodPost, endpoint, body, stream)
 	// The native path builds its own request but must follow the same streaming
 	// policy as the adapter: a total deadline would truncate a live stream.
 	adapter, _ := resolveTypedAdapter[AnthropicAdapter](s.adapterRegistry, ProviderAnthropic)

@@ -181,7 +181,7 @@ Models routed to an OpenAI Codex Subscription account work through the same Mess
 
 On Codex-backed Messages routes, `max_tokens`, `temperature`, `top_p`, `stop_sequences`, and Anthropic structured-output formatting cannot be enforced because the subscription upstream does not support their equivalent request fields.
 
-Claude Code requests that enable `mid-conversation-system-2026-04-07` may include `system` entries inside `messages`. TokenHub preserves those entries on native Anthropic routes and translates them into ordered system messages on OpenAI-compatible routes. Without that beta, `messages` continues to accept only `user` and `assistant` roles.
+Claude Code requests that enable `mid-conversation-system-2026-04-07` may include `system` entries inside `messages`. TokenHub preserves those entries on native Anthropic routes. On OpenAI-compatible routes, it merges top-level and mid-conversation system content into one leading system message because many compatible model servers reject a system role after the conversation has started. The relative order of user, assistant, and tool turns remains unchanged. Without that beta, `messages` continues to accept only `user` and `assistant` roles.
 
 Configure local Claude Code with the TokenHub host URL, without the `/v1` suffix:
 

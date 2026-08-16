@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -282,7 +283,7 @@ func TestAnthropicMessagesConvertsOpenAIStreamingTextAndToolCall(t *testing.T) {
 		_, _ = io.WriteString(w, "data: {\"id\":\"chatcmpl_stream\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_read\",\"type\":\"function\",\"function\":{\"name\":\"Read\",\"arguments\":\"{\\\"file_path\\\":\"}}]},\"finish_reason\":null}]}\n\n")
 		_, _ = io.WriteString(w, "data: {\"id\":\"chatcmpl_stream\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"README.md\\\"}\"}}]},\"finish_reason\":null}]}\n\n")
 		_, _ = io.WriteString(w, "data: {\"id\":\"chatcmpl_stream\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n")
-		_, _ = io.WriteString(w, "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":90,\"completion_tokens\":12,\"total_tokens\":102}}\n\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":90,\"completion_tokens\":12,\"total_tokens\":102,\"prompt_tokens_details\":{\"cached_tokens\":80}}}\n\n")
 		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 	}))
 	defer upstream.Close()
@@ -312,6 +313,7 @@ func TestAnthropicMessagesConvertsOpenAIStreamingTextAndToolCall(t *testing.T) {
 		`"id":"call_read","input":{},"name":"Read","type":"tool_use"`,
 		`"partial_json":"{\"file_path\":\"README.md\"}","type":"input_json_delta"`,
 		`"stop_reason":"tool_use"`,
+		`"cache_creation_input_tokens":0,"cache_read_input_tokens":80,"input_tokens":10,"output_tokens":12`,
 		"event: message_stop",
 	} {
 		if !strings.Contains(body, expected) {
@@ -319,7 +321,7 @@ func TestAnthropicMessagesConvertsOpenAIStreamingTextAndToolCall(t *testing.T) {
 		}
 	}
 	records := store.ListUsageRecords()
-	if len(records) != 1 || records[0].TotalTokens != 102 {
+	if len(records) != 1 || records[0].TotalTokens != 102 || records[0].CachedInputTokens != 80 {
 		t.Fatalf("unexpected streaming usage records: %+v", records)
 	}
 }
@@ -405,6 +407,9 @@ func TestAnthropicMessagesConvertsMidConversationSystemForOpenAI(t *testing.T) {
 	resp := doAnthropicRequestWithBeta(t, handler, "/v1/messages", map[string]any{
 		"model":      "claude-tokenhub-test",
 		"max_tokens": 1024,
+		"system": []any{
+			map[string]any{"type": "text", "text": "Stable leading instruction."},
+		},
 		"messages": []any{
 			map[string]any{"role": "user", "content": "Inspect the repository."},
 			map[string]any{
@@ -425,12 +430,53 @@ func TestAnthropicMessagesConvertsMidConversationSystemForOpenAI(t *testing.T) {
 	}
 	messages, _ := upstreamPayload["messages"].([]any)
 	if len(messages) != 3 {
-		t.Fatalf("expected three ordered upstream messages, got %#v", messages)
+		t.Fatalf("expected one leading system and two user messages, got %#v", messages)
 	}
-	systemMessage, _ := messages[1].(map[string]any)
-	if systemMessage["role"] != "system" || systemMessage["content"] != "Keep the next response concise." {
-		t.Fatalf("expected translated mid-conversation system message, got %#v", systemMessage)
+	systemMessage, _ := messages[0].(map[string]any)
+	if systemMessage["role"] != "system" || systemMessage["content"] != "Stable leading instruction.\n\nKeep the next response concise." {
+		t.Fatalf("expected all system content merged into the first message, got %#v", systemMessage)
 	}
+	for index, item := range messages[1:] {
+		message, _ := item.(map[string]any)
+		if message["role"] == "system" {
+			t.Fatalf("unexpected system message at upstream index %d: %#v", index+1, message)
+		}
+	}
+}
+
+func TestAnthropicMessagesColleagueOrderCaseProviderPayload(t *testing.T) {
+	req := anthropicMessagesRequest{
+		Raw: map[string]any{
+			"system": []any{map[string]any{"type": "text", "text": "记住标记：7KQ"}},
+		},
+		Model: "deepseek-v4-pro",
+		Messages: []any{
+			map[string]any{"role": "user", "content": "记住标记：3VN"},
+			map[string]any{"role": "system", "content": "记住标记：9DX"},
+			map[string]any{"role": "assistant", "content": "记住标记：4RB"},
+			map[string]any{"role": "user", "content": "按照你实际看到的消息先后顺序，只输出以上4个标记，用 > 分隔，不要解释。"},
+		},
+		MaxTokens: 4096,
+	}
+
+	converted, err := anthropicToOpenAIChatRequest(req, Provider{Type: ProviderOpenAICompatible})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ChatMessage{
+		{Role: "system", Content: "记住标记：7KQ\n\n记住标记：9DX"},
+		{Role: "user", Content: "记住标记：3VN"},
+		{Role: "assistant", Content: "记住标记：4RB"},
+		{Role: "user", Content: "按照你实际看到的消息先后顺序，只输出以上4个标记，用 > 分隔，不要解释。"},
+	}
+	if !reflect.DeepEqual(converted.Messages, want) {
+		t.Fatalf("unexpected provider messages:\n got: %#v\nwant: %#v", converted.Messages, want)
+	}
+	payload, err := json.Marshal(converted.Messages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("provider messages: %s", payload)
 }
 
 func TestAnthropicMessagesPreservesMidConversationSystemForNativeRoute(t *testing.T) {

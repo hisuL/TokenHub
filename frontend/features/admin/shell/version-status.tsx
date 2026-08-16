@@ -387,10 +387,11 @@ export function VersionStatus({ api, user }: { api: ApiContext; user: AdminUser 
     <>
       <button
         ref={triggerRef}
+        aria-label={`v${versionLabel} · ${info.has_update ? tx("发现新版本") : tx("当前版本")}`}
         aria-haspopup="dialog"
         className={info.has_update ? "version version-trigger update-available" : "version version-trigger"}
         onClick={() => setOpen(true)}
-        title={info.has_update ? tx("发现新版本") : tx("当前版本")}
+        title={`v${versionLabel} · ${info.has_update ? tx("发现新版本") : tx("当前版本")}`}
         type="button"
       >
         <span>v{versionLabel}</span>

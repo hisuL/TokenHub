@@ -54,8 +54,23 @@
 }
 
 .sidebar-version-status {
+  width: 100%;
   min-width: 0;
+  overflow: hidden;
   grid-area: version;
+}
+
+.sidebar-version-status .version {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.sidebar-version-status .version > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .version {

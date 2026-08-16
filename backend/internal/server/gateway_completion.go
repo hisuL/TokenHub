@@ -3,8 +3,11 @@ package server
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 )
+
+const maxTraceContextHeaderBytes = 512
 
 // CompletionKind names the lifecycle that produced a completion.
 //
@@ -135,9 +138,19 @@ func (s *Server) finishCall(completion GatewayCallCompletion) {
 // finishRoutedCall completes a call while its request is still in hand, taking the
 // client attribution from it.
 func (s *Server) finishRoutedCall(r *http.Request, completion GatewayCallCompletion) {
+	completion.Call.traceParent = boundedTraceContextHeader(r.Header.Get("traceparent"))
+	completion.Call.traceState = boundedTraceContextHeader(r.Header.Get("tracestate"))
 	completion.ClientIP = s.clientIP(r)
 	completion.UserAgent = r.UserAgent()
 	s.finishCall(completion)
+}
+
+func boundedTraceContextHeader(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) > maxTraceContextHeaderBytes {
+		return ""
+	}
+	return value
 }
 
 // finishSuccessfulRoutedCall completes a call that reached a provider and came back

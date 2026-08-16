@@ -126,6 +126,19 @@ func TestDefaultClaudeCodeAttributionPolicyForNewProvider(t *testing.T) {
 
 func TestAdminProviderClaudeCodeAttributionDefaultsOnlyOnCreate(t *testing.T) {
 	app := newTestServer()
+	login := doJSON(t, app, http.MethodPost, "/api/admin/auth/login", map[string]any{
+		"identity": "admin@tokenhub.local",
+		"password": "admin123456",
+	}, "")
+	if login.Code != http.StatusOK {
+		t.Fatalf("admin login failed: %d: %s", login.Code, login.Body)
+	}
+	var session struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal([]byte(login.Body), &session); err != nil || session.Token == "" {
+		t.Fatalf("decode admin session: %v: %s", err, login.Body)
+	}
 	thirdParty := doJSON(t, app, http.MethodPost, "/api/admin/providers", map[string]any{
 		"id":       "prv_default_strip",
 		"name":     "Default Strip",
@@ -133,7 +146,7 @@ func TestAdminProviderClaudeCodeAttributionDefaultsOnlyOnCreate(t *testing.T) {
 		"base_url": "https://example.invalid/v1",
 		"status":   StatusActive,
 		"healthy":  true,
-	}, "")
+	}, session.Token)
 	if thirdParty.Code != http.StatusCreated {
 		t.Fatalf("expected third-party provider creation, got %d: %s", thirdParty.Code, thirdParty.Body)
 	}
@@ -152,7 +165,7 @@ func TestAdminProviderClaudeCodeAttributionDefaultsOnlyOnCreate(t *testing.T) {
 		"base_url": "https://anthropic-proxy.example.invalid",
 		"status":   StatusActive,
 		"healthy":  true,
-	}, "")
+	}, session.Token)
 	if unknownAnthropic.Code != http.StatusCreated {
 		t.Fatalf("expected unknown Anthropic provider creation, got %d: %s", unknownAnthropic.Code, unknownAnthropic.Body)
 	}

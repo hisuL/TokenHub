@@ -421,9 +421,12 @@ func (c *openAIAnthropicStreamConverter) Finalize(usage Usage) error {
 			"stop_reason":   stopReason,
 			"stop_sequence": nil,
 		},
-		"usage": map[string]any{
-			"output_tokens": usage.CompletionTokens,
-		},
+		// OpenAI-compatible streams commonly report their authoritative prompt
+		// and cache usage only in the final usage chunk. message_start has already
+		// been emitted by then, so restate the complete usage in message_delta;
+		// Anthropic stream clients merge these cumulative fields into the final
+		// message snapshot.
+		"usage": anthropicUsageObject(usage),
 	}); err != nil {
 		return err
 	}
