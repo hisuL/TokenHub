@@ -19,6 +19,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "$purge" == true && "$EUID" -ne 0 ]]; then
+  die "--purge-data must be run as root"
+fi
+
 load_environment
 detect_compose
 root="$TOKENHUB_INSTALL_ROOT"
