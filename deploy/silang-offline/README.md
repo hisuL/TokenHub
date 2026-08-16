@@ -30,8 +30,7 @@ tar -xzf tokenhub-silang-offline-0.5.0-silang.1-linux-amd64.tar.gz
 cd tokenhub-silang-offline-0.5.0-silang.1-linux-amd64
 sudo ./bin/install.sh \
   --public-base-url http://192.168.1.20:8080 \
-  --admin-password 'TokenHub@2026' \
-  --no-start
+  --admin-password 'TokenHub@2026'
 ```
 
 安装脚本执行以下操作：
@@ -40,9 +39,10 @@ sudo ./bin/install.sh \
 2. 检查 Linux、x86_64、Docker 和 Compose。
 3. 从本地压缩归档导入三个固定版本镜像，不访问镜像仓库。
 4. 首次安装写入指定的管理员密码，并生成管理 Token、数据库密码和数据加密密钥。
-5. 输出控制台地址和管理员密码。
+5. 输出控制台地址和管理员密码，但不启动服务。
 
 凭据保存在 `/opt/tokenhub-silang/.env`，权限为 `0600`。重复执行安装脚本会保留原凭据和数据库。
+安装完成后必须先修改 `.env` 和 `app/config/models.json`，再手动执行 `start.sh`。
 
 仅执行环境和包检查：
 

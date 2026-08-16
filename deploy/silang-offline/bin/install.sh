@@ -10,7 +10,6 @@ bind_address="${TOKENHUB_BIND_ADDRESS:-0.0.0.0}"
 port="${TOKENHUB_PORT:-8080}"
 public_base_url="${TOKENHUB_PUBLIC_BASE_URL:-}"
 admin_password="${TOKENHUB_BOOTSTRAP_ADMIN_PASSWORD:-}"
-no_start=false
 
 usage() {
   cat <<'EOF'
@@ -22,7 +21,6 @@ Options:
   --port PORT             Unified console/API port (default 8080)
   --public-base-url URL   Client-visible URL, for example http://192.168.1.20:8080
   --admin-password VALUE  Initial admin password (generated when omitted)
-  --no-start              Install files and images without starting services
   --check-only            Verify the package and host without importing images
   -h, --help              Show this help
 EOF
@@ -36,7 +34,6 @@ while [[ $# -gt 0 ]]; do
     --port) [[ $# -ge 2 ]] || die "--port requires a value"; port="$2"; shift 2 ;;
     --public-base-url) [[ $# -ge 2 ]] || die "--public-base-url requires a value"; public_base_url="$2"; shift 2 ;;
     --admin-password) [[ $# -ge 2 ]] || die "--admin-password requires a value"; admin_password="$2"; shift 2 ;;
-    --no-start) no_start=true; shift ;;
     --check-only) check_only=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
@@ -152,12 +149,7 @@ chmod 0600 "$env_file"
 printf '%s\n' "$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' "$package_root/manifest.json" | head -n 1)" \
   >"$install_root/installed-version"
 
-if [[ "$no_start" == false ]]; then
-  "$install_root/app/bin/start.sh"
-  log "installation and startup completed"
-else
-  log "installation completed; services were not started"
-fi
+log "installation completed; edit configuration before running start.sh"
 printf 'Console/API: %s\n' "$TOKENHUB_PUBLIC_BASE_URL"
 printf 'Admin user: admin\n'
 printf 'Admin password: %s\n' "$TOKENHUB_BOOTSTRAP_ADMIN_PASSWORD"
