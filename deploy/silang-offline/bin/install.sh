@@ -9,6 +9,8 @@ source "$script_dir/common.sh"
 bind_address="${TOKENHUB_BIND_ADDRESS:-0.0.0.0}"
 port="${TOKENHUB_PORT:-8080}"
 public_base_url="${TOKENHUB_PUBLIC_BASE_URL:-}"
+admin_password="${TOKENHUB_BOOTSTRAP_ADMIN_PASSWORD:-}"
+no_start=false
 
 usage() {
   cat <<'EOF'
@@ -19,6 +21,8 @@ Options:
   --bind-address ADDRESS  Host listen address (default 0.0.0.0)
   --port PORT             Unified console/API port (default 8080)
   --public-base-url URL   Client-visible URL, for example http://192.168.1.20:8080
+  --admin-password VALUE  Initial admin password (generated when omitted)
+  --no-start              Install files and images without starting services
   --check-only            Verify the package and host without importing images
   -h, --help              Show this help
 EOF
@@ -31,6 +35,8 @@ while [[ $# -gt 0 ]]; do
     --bind-address) [[ $# -ge 2 ]] || die "--bind-address requires a value"; bind_address="$2"; shift 2 ;;
     --port) [[ $# -ge 2 ]] || die "--port requires a value"; port="$2"; shift 2 ;;
     --public-base-url) [[ $# -ge 2 ]] || die "--public-base-url requires a value"; public_base_url="$2"; shift 2 ;;
+    --admin-password) [[ $# -ge 2 ]] || die "--admin-password requires a value"; admin_password="$2"; shift 2 ;;
+    --no-start) no_start=true; shift ;;
     --check-only) check_only=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
@@ -42,6 +48,10 @@ case "$(uname -m)" in x86_64|amd64) ;; *) die "this package supports only Linux 
 [[ "$install_root" == /* && "$install_root" != / && "$install_root" != *[[:space:]]* ]] || die "install root must be an absolute path without spaces"
 [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || die "invalid port: $port"
 [[ "$bind_address" != *[[:space:]]* ]] || die "bind address must not contain spaces"
+if [[ -n "$admin_password" ]]; then
+  [[ "$admin_password" =~ ^[A-Za-z0-9@._%+=,:-]{12,128}$ ]] \
+    || die "admin password must be 12-128 characters using letters, digits, or @._%+=,:-"
+fi
 
 for command_name in docker sha256sum gzip od awk sed; do
   command -v "$command_name" >/dev/null 2>&1 || die "required command is missing: $command_name"
@@ -118,7 +128,7 @@ TOKENHUB_IMAGE=$TOKENHUB_IMAGE
 POSTGRES_IMAGE=$POSTGRES_IMAGE
 GATEWAY_IMAGE=$GATEWAY_IMAGE
 TOKENHUB_ADMIN_TOKEN=$(random_hex 32)
-TOKENHUB_BOOTSTRAP_ADMIN_PASSWORD=$(random_hex 18)
+TOKENHUB_BOOTSTRAP_ADMIN_PASSWORD=${admin_password:-$(random_hex 18)}
 TOKENHUB_SECRET_KEY=$(random_hex 32)
 POSTGRES_DB=tokenhub
 POSTGRES_USER=tokenhub
@@ -138,23 +148,16 @@ fi
 load_environment
 detect_compose
 compose config --quiet
-compose up -d --pull never --remove-orphans
-
-for container in tokenhub-silang-postgres tokenhub-silang-app tokenhub-silang-gateway; do
-  if ! wait_for_health "$container" 240; then
-    compose ps
-    compose logs --tail 120 "$container" || true
-    die "container did not become healthy: $container"
-  fi
-done
-
-docker exec tokenhub-silang-gateway wget -qO- http://127.0.0.1:8080/readyz >/dev/null \
-  || die "unified gateway readiness check failed"
 chmod 0600 "$env_file"
 printf '%s\n' "$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' "$package_root/manifest.json" | head -n 1)" \
   >"$install_root/installed-version"
 
-log "installation completed"
+if [[ "$no_start" == false ]]; then
+  "$install_root/app/bin/start.sh"
+  log "installation and startup completed"
+else
+  log "installation completed; services were not started"
+fi
 printf 'Console/API: %s\n' "$TOKENHUB_PUBLIC_BASE_URL"
 printf 'Admin user: admin\n'
 printf 'Admin password: %s\n' "$TOKENHUB_BOOTSTRAP_ADMIN_PASSWORD"

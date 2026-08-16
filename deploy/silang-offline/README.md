@@ -29,7 +29,9 @@
 tar -xzf tokenhub-silang-offline-0.5.0-silang.1-linux-amd64.tar.gz
 cd tokenhub-silang-offline-0.5.0-silang.1-linux-amd64
 sudo ./bin/install.sh \
-  --public-base-url http://192.168.1.20:8080
+  --public-base-url http://192.168.1.20:8080 \
+  --admin-password 'TokenHub@2026' \
+  --no-start
 ```
 
 安装脚本执行以下操作：
@@ -37,9 +39,8 @@ sudo ./bin/install.sh \
 1. 校验包内所有文件的 SHA-256。
 2. 检查 Linux、x86_64、Docker 和 Compose。
 3. 从本地压缩归档导入三个固定版本镜像，不访问镜像仓库。
-4. 首次安装生成管理员密码、管理 Token、数据库密码和数据加密密钥。
-5. 启动 PostgreSQL、TokenHub 和 Nginx，并等待三个容器健康。
-6. 输出控制台地址和管理员密码。
+4. 首次安装写入指定的管理员密码，并生成管理 Token、数据库密码和数据加密密钥。
+5. 输出控制台地址和管理员密码。
 
 凭据保存在 `/opt/tokenhub-silang/.env`，权限为 `0600`。重复执行安装脚本会保留原凭据和数据库。
 
@@ -48,6 +49,14 @@ sudo ./bin/install.sh \
 ```bash
 sudo ./bin/install.sh --check-only \
   --public-base-url http://192.168.1.20:8080
+```
+
+## 启停
+
+```bash
+sudo /opt/tokenhub-silang/app/bin/start.sh
+sudo /opt/tokenhub-silang/app/bin/restart.sh
+sudo /opt/tokenhub-silang/app/bin/stop.sh
 ```
 
 ## 模型配置
