@@ -1,0 +1,19 @@
+{
+  "enabled": false,
+  "provider": {
+    "id": "prv_silang_sglang_router",
+    "resource_id": "rsrc_silang_sglang_router",
+    "name": "思朗 SGLang Router",
+    "base_url": "http://192.168.1.50:8000/v1",
+    "api_key": ""
+  },
+  "models": [
+    {
+      "public_name": "customer-model-name",
+      "upstream_name": "SGLang-Upstream-Model",
+      "display_name": "Customer Model",
+      "context_window": 131072,
+      "max_output_tokens": 8192
+    }
+  ]
+}
