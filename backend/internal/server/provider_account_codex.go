@@ -200,7 +200,6 @@ func (a CodexSubscriptionAdapter) openResponsesWithCredentials(ctx context.Conte
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	applyCodexRequestHeaders(req.Header, incoming)
-	recordProviderOutboundRequest(ctx, Provider{}, providerModel, http.MethodPost, endpoint, payload, true)
 	client := a.Client
 	if client == nil {
 		client = http.DefaultClient

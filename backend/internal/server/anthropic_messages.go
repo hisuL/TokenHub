@@ -870,7 +870,6 @@ func (s *Server) doNativeAnthropicRequest(
 	for key, value := range provider.Headers {
 		req.Header.Set(key, value)
 	}
-	recordProviderOutboundRequest(ctx, provider, stringValue(payload["model"]), http.MethodPost, endpoint, body, stream)
 	// The native path builds its own request but must follow the same streaming
 	// policy as the adapter: a total deadline would truncate a live stream.
 	adapter, _ := resolveTypedAdapter[AnthropicAdapter](s.adapterRegistry, ProviderAnthropic)

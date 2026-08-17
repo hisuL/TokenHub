@@ -1156,13 +1156,8 @@ type CallContext struct {
 	// RouteAttempts carries the per-candidate outcomes for observability output.
 	// It is filled from the completion's Attempts just before FinishCall and never
 	// influences routing.
-	RouteAttempts []RouteAttempt
-	Affinity      *RequestAffinity
-	// traceParent and traceState are the bounded W3C context received at the HTTP
-	// boundary. Traces are emitted asynchronously after the handler returns, so the
-	// request context itself cannot be retained as the parent carrier.
-	traceParent    string
-	traceState     string
+	RouteAttempts  []RouteAttempt
+	Affinity       *RequestAffinity
 	requestContext context.Context
 }
 

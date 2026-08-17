@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -249,54 +248,6 @@ func TestTracingExportsRootAndGenerationSpans(t *testing.T) {
 	expectedAttempt := spanIDForRequest(requestID, "attempt:1")
 	if string(generation.GetSpanId()) != string(expectedAttempt[:]) {
 		t.Fatal("generation span ID is not deterministic, so an OTLP retry would duplicate it")
-	}
-}
-
-func TestTracingInheritsRemoteW3CParent(t *testing.T) {
-	endpoint := newFakeOTLPEndpoint(t)
-	app := newTracingTestServer(t, tracingTestConfig(endpoint.tracesURL()))
-
-	const traceID = "4bf92f3577b34da6a3ce929d0e0e4736"
-	const parentSpanID = "00f067aa0ba902b7"
-	request := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(
-		`{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"hello"}]}`))
-	request.Header.Set("content-type", "application/json")
-	request.Header.Set("authorization", "Bearer thk_demo_local")
-	request.Header.Set("traceparent", "00-"+traceID+"-"+parentSpanID+"-01")
-	recorder := httptest.NewRecorder()
-	app.Handler().ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
-	}
-	flushTracing(t, app)
-
-	spans := endpoint.collected()
-	if len(spans) != 2 {
-		t.Fatalf("expected a TokenHub span and one generation, got %d", len(spans))
-	}
-	var root, generation *tracepb.Span
-	for _, span := range spans {
-		switch spanString(t, span, attrObservationType) {
-		case observationTypeSpan:
-			root = span
-		case observationTypeGeneration:
-			generation = span
-		}
-	}
-	if root == nil || generation == nil {
-		t.Fatal("expected exactly one TokenHub span and one generation span")
-	}
-	if got := fmt.Sprintf("%x", root.GetTraceId()); got != traceID {
-		t.Fatalf("TokenHub trace ID = %s, want inherited %s", got, traceID)
-	}
-	if got := fmt.Sprintf("%x", root.GetParentSpanId()); got != parentSpanID {
-		t.Fatalf("TokenHub parent span ID = %s, want APISIX span %s", got, parentSpanID)
-	}
-	if string(generation.GetParentSpanId()) != string(root.GetSpanId()) {
-		t.Fatal("generation is not a child of the TokenHub span")
-	}
-	if string(generation.GetTraceId()) != string(root.GetTraceId()) {
-		t.Fatal("APISIX parent, TokenHub and generation are not in one trace")
 	}
 }
 

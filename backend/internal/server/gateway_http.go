@@ -669,10 +669,7 @@ func executeRoutedWithStore[T any](
 			// gateway here, and that backpressure is part of the attempt duration,
 			// not of the gateway overhead reported in overhead_seconds.
 			attemptStartedAt := time.Now()
-			attemptIndex := len(attempts) + 1
-			attemptCtx := withProviderRequestID(leaseCtx, routed.Call.RequestID)
-			attemptCtx = withProviderOutboundAttempt(attemptCtx, routed.Call.RequestID, attemptIndex, route)
-			resp, usage, err := call(attemptCtx, route, omitReasoningEffort, len(attempts)+1)
+			resp, usage, err := call(leaseCtx, route, omitReasoningEffort, len(attempts)+1)
 			cumulativeTokens = saturatingAddNonNegative(cumulativeTokens, meteredTokens(usage))
 			usage.RateLimitTokens = cumulativeTokens
 			attemptEndedAt := time.Now()

@@ -3,8 +3,8 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
-version="${PACKAGE_VERSION:-0.5.0-silang.1}"
-revision="${PACKAGE_REVISION:-r005}"
+version="${PACKAGE_VERSION:-0.5.0-silang.2}"
+revision="${PACKAGE_REVISION:-r006}"
 output_parent="${1:-$repo_root/../tokenhub-silang-offline-dist}"
 package_name="tokenhub-silang-offline-$version-linux-amd64"
 package_dir="$output_parent/$package_name"
@@ -86,15 +86,16 @@ cat >"$package_dir/manifest.json" <<EOF
   "platform": "linux/amd64",
   "created_at": "$created_at",
   "source_repository": "https://github.com/hisuL/TokenHub",
-  "source_branch": "b300-v0.5-optimized-20260816",
+  "source_branch": "silang-v0.5-minimal-r006",
   "source_commit": "$source_commit",
   "images": [
     {"name": "$tokenhub_image", "id": "$tokenhub_id"},
     {"name": "$postgres_image", "id": "$postgres_id"},
     {"name": "$gateway_image", "id": "$gateway_id"}
   ],
-  "components": ["nginx-gateway", "tokenhub-v0.5-optimized", "postgresql-16"],
-  "excluded_components": ["load-balancer", "apisix", "redis", "otel", "tempo", "loki", "grafana", "langfuse", "clickhouse", "minio"]
+  "components": ["nginx-gateway", "tokenhub-v0.5-silang-minimal", "postgresql-16"],
+  "excluded_components": ["load-balancer", "apisix", "redis", "otel", "tempo", "loki", "grafana", "langfuse", "clickhouse", "minio"],
+  "excluded_features": ["provider-request-id-propagation", "w3c-parent-trace-inheritance", "provider-outbound-body-audit"]
 }
 EOF
 

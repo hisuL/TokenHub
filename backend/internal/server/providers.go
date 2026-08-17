@@ -258,7 +258,6 @@ func (c openAICompatibleCore) doRaw(ctx context.Context, provider Provider, meth
 	if err != nil {
 		return nil, err
 	}
-	recordProviderOutboundRequest(ctx, provider, model, method, endpoint, body, stream)
 	resp, err := sendUpstream(c.client, c.streamClient, c.streamIdleTimeout, req, stream)
 	if err != nil {
 		return nil, err
@@ -284,7 +283,6 @@ func openAICompatibleRequest(ctx context.Context, provider Provider, method stri
 	for key, value := range provider.Headers {
 		req.Header.Set(key, value)
 	}
-	applyProviderRequestID(req)
 	return req, nil
 }
 
@@ -520,7 +518,6 @@ func (a AnthropicAdapter) doRaw(ctx context.Context, provider Provider, endpoint
 	req.Header.Set("content-type", "application/json")
 	req.Header.Set("x-api-key", provider.APIKey)
 	req.Header.Set("anthropic-version", version)
-	recordProviderOutboundRequest(ctx, provider, "", http.MethodPost, endpoint, body, stream)
 	resp, err := sendUpstream(a.Client, a.StreamClient, a.StreamIdleTimeout, req, stream)
 	if err != nil {
 		return nil, err
@@ -652,7 +649,6 @@ func (a GeminiAdapter) doRaw(ctx context.Context, provider Provider, model strin
 		return nil, err
 	}
 	req.Header.Set("content-type", "application/json")
-	recordProviderOutboundRequest(ctx, provider, model, http.MethodPost, action, body, stream)
 	resp, err := sendUpstream(a.Client, a.StreamClient, a.StreamIdleTimeout, req, stream)
 	if err != nil {
 		return nil, err

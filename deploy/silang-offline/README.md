@@ -1,7 +1,7 @@
 # TokenHub 思朗单机离线版
 
-版本：`0.5.0-silang.1`
-发行修订：`r005`
+版本：`0.5.0-silang.2`
+发行修订：`r006`
 
 本包用于 Linux x86_64 内网单机部署。运行形态为 Nginx 单入口、TokenHub v0.5 优化版和本机 PostgreSQL 16，不包含负载均衡、云数据库、APISIX 或全链路追踪组件。
 
@@ -11,7 +11,9 @@
 - TokenHub 同一容器运行 Backend 与 Frontend。
 - PostgreSQL 数据保存在宿主机安装目录。
 - TokenHub 自带的请求、用量、费用和路由记录保留。
-- Metrics、OTLP Trace、正文 Trace 和 Provider 出站正文审计默认关闭。
+- Metrics、OTLP Trace 和正文 Trace 固定关闭。
+- 不包含向上游透传动态 `x-request-id`、继承入口 W3C Trace 或记录 Provider 最终出站正文的 B300 观测增强。
+- TokenHub 自带的内部 `req_*` 请求编号和管理界面请求日志继续保留。
 - 主机故障不会自动切换，数据库备份应复制到另一块磁盘或内网 NAS。
 
 ## 环境要求
@@ -27,8 +29,8 @@
 ## 安装
 
 ```bash
-tar -xzf tokenhub-silang-offline-0.5.0-silang.1-linux-amd64.tar.gz
-cd tokenhub-silang-offline-0.5.0-silang.1-linux-amd64
+tar -xzf tokenhub-silang-offline-0.5.0-silang.2-linux-amd64.tar.gz
+cd tokenhub-silang-offline-0.5.0-silang.2-linux-amd64
 sudo ./bin/install.sh \
   --public-base-url http://192.168.1.20:8080 \
   --admin-password 'TokenHub@2026'
