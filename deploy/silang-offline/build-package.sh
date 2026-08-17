@@ -31,7 +31,15 @@ if [[ "${SKIP_TOKENHUB_BUILD:-false}" == true ]]; then
     exit 1
   }
 else
+	proxy_args=()
+	for proxy_name in HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy; do
+		proxy_value="${!proxy_name:-}"
+		if [[ -n "$proxy_value" ]]; then
+			proxy_args+=(--build-arg "$proxy_name=$proxy_value")
+		fi
+	done
   docker build \
+	"${proxy_args[@]}" \
     --build-arg TOKENHUB_VERSION="$version" \
     --build-arg TOKENHUB_BUILD_TYPE=release \
     -t "$tokenhub_image" \

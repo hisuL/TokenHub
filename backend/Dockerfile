@@ -72,7 +72,11 @@ COPY --chown=node:node data/provider-catalog.json /usr/local/lib/tokenhub-image/
 COPY deploy/container/tokenhub-build-id /usr/local/bin/tokenhub-build-id
 COPY deploy/container/tokenhub-entrypoint /usr/local/bin/tokenhub-entrypoint
 
-RUN printf '%s\n' "$TOKENHUB_VERSION" >/usr/local/lib/tokenhub-image/VERSION && \
+RUN sed -i 's/\r$//' \
+      /usr/local/bin/tokenhub-build-id \
+      /usr/local/bin/tokenhub-entrypoint \
+      /usr/local/lib/tokenhub-image/bin/tokenhub-run && \
+    printf '%s\n' "$TOKENHUB_VERSION" >/usr/local/lib/tokenhub-image/VERSION && \
     chmod 0755 \
       /usr/local/bin/tokenhub-build-id \
       /usr/local/bin/tokenhub-entrypoint \
