@@ -18,6 +18,5 @@ done
 
 docker exec tokenhub-silang-gateway wget -qO- http://127.0.0.1:8080/readyz >/dev/null \
   || die "unified gateway readiness check failed"
-"$script_dir/configure-models.sh"
 log "services started"
 printf 'Console/API: %s\n' "$TOKENHUB_PUBLIC_BASE_URL"

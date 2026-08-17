@@ -1,6 +1,7 @@
 # TokenHub 思朗单机离线版
 
 版本：`0.5.0-silang.1`
+发行修订：`r005`
 
 本包用于 Linux x86_64 内网单机部署。运行形态为 Nginx 单入口、TokenHub v0.5 优化版和本机 PostgreSQL 16，不包含负载均衡、云数据库、APISIX 或全链路追踪组件。
 
@@ -42,7 +43,7 @@ sudo ./bin/install.sh \
 5. 输出控制台地址和管理员密码，但不启动服务。
 
 凭据保存在 `/opt/tokenhub-silang/.env`，权限为 `0600`。重复执行安装脚本会保留原凭据和数据库。
-安装完成后必须先修改 `.env` 和 `app/config/models.json`，再手动执行 `start.sh`。
+安装完成后先修改 `.env` 中的监听地址、对外端口和实际访问地址，再手动执行 `start.sh`。
 
 仅执行环境和包检查：
 
@@ -61,16 +62,9 @@ sudo /opt/tokenhub-silang/app/bin/stop.sh
 
 ## 模型配置
 
-复制并修改模型配置：
+首次启动并登录 TokenHub 后，在管理界面中配置 SGLang Router 供应商、上游模型和路由。这些配置保存在 PostgreSQL 中，正常停止、启动或重启不会丢失。
 
-```bash
-sudo cp config/models.example.json /opt/tokenhub-silang/app/config/models.json
-sudo chmod 600 /opt/tokenhub-silang/app/config/models.json
-sudo vi /opt/tokenhub-silang/app/config/models.json
-sudo /opt/tokenhub-silang/app/bin/configure-models.sh
-```
-
-配置中需要提供 SGLang Router 的内网 Base URL、鉴权信息，以及客户模型名到上游模型名的映射。将 `enabled` 改为 `true` 后执行配置脚本。脚本采用固定 Provider/Resource ID，重复执行不会重复创建已有对象。
+`start.sh` 和 `restart.sh` 不读取、不应用 `app/config/models.json`，不会覆盖管理界面中的配置。包内 `configure-models.sh` 仅作为高级批量初始化工具保留，只在管理员手工执行时生效。
 
 ## 运维
 

@@ -4,6 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 version="${PACKAGE_VERSION:-0.5.0-silang.1}"
+revision="${PACKAGE_REVISION:-r005}"
 output_parent="${1:-$repo_root/../tokenhub-silang-offline-dist}"
 package_name="tokenhub-silang-offline-$version-linux-amd64"
 package_dir="$output_parent/$package_name"
@@ -81,6 +82,7 @@ cat >"$package_dir/manifest.json" <<EOF
 {
   "name": "TokenHub 思朗单机离线版",
   "version": "$version",
+  "revision": "$revision",
   "platform": "linux/amd64",
   "created_at": "$created_at",
   "source_repository": "https://github.com/hisuL/TokenHub",
